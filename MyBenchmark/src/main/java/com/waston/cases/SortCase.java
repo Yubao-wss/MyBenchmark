@@ -8,51 +8,50 @@ package com.waston.cases;
 
 import com.waston.BenchmarkCase;
 import com.waston.annotaions.Benchmark;
+import com.waston.annotaions.Measurement;
+
+import java.util.Arrays;
+import java.util.Random;
 
 /**
  * 1.快速排序和归并排序的差别
  * 2.自己实现的归并排序和Array.sort对比
  * 3.TODO:自己实现并发排序（ForkJoin）和Array.parall
  */
+@Measurement(iterations = 10,countPerGroup = 3)
 public class SortCase implements BenchmarkCase {
     //快速排序
 
-    static class QuickSort{
+    //@Measurement(iterations = 10,countPerGroup = 10)
+
         public static void quickSort(int[] target){
             int n = target.length;
             if (n <= 1){
                 return;
             }
-            Internal(target,0,n-1);
+            quickSortInternal(target,0,n-1);
         }
 
-        private static void Internal(int[] target,int low,int high){
-            int randomIndex = (int) (Math.random()*(high - low + 1) + low);
-            swap(target,low,randomIndex);
-            int v = target[low];
-            // arr[low+1...lt] < v
-            int lt = low;
-            // arr[lt+1...i-1] == v
-            int i = low + 1;
-            // arr[gt...r] > v
-            int gt = high + 1;
-            while(i < gt){
+        private static void quickSortInternal(int[] target,int low,int high){
+            if(low >= high){
+                return;
+            }
+            int q = partition(target,low,high);
+            quickSortInternal(target,low,q-1);
+            quickSortInternal(target,q+1,high);
+        }
+
+        private static int partition(int[] target,int low,int high){
+            int v =  target[low];
+            int j = low;
+            for(int i = low + 1;i <= high;i++){
                 if(target[i] < v){
-                    swap(target,i,lt+1);
-                    lt++;
-                    i++;
-                }else if(target[i] > v){
-                    swap(target,i,gt-1);
-                    gt--;
-                }else {
-                    i++;
+                    swap(target,j+1,i);
+                    j++;
                 }
             }
-            //循环走完只需要将low位置的元素与lt交换即为分区点
-            swap(target,low,lt);
-            //递归时将相同元素隔离
-            Internal(target,low,lt-1);
-            Internal(target,gt,high);
+            swap(target,low,j);
+            return j;
         }
 
         /***
@@ -66,83 +65,104 @@ public class SortCase implements BenchmarkCase {
             target[indexA] = target[indexB];
             target[indexB] = temp;
         }
-    }
+
+
+
+
+
+
+
 
     //归并排序
-    static class MergeSort{
+        //@Benchmark
         public static void mergeSort(int[] target){
             int n = target.length;
             if (n<=1){
                 return;
             }
-            int mid = n/2;
-            mergeInternal(target,0,n-1);
+            mergeSortInternal(target,0,n-1);
         }
 
         /***
          * 分治排序
-         * @param array 要排序的集合
+         * @param target 要排序的集合
          * @param low 开始位置
          * @param high 结束位置
          */
-        private static void mergeInternal(int[] array,int low,int high){
-            int mid = low + (high-low)/2;
-            //左边小数组
-            mergeInternal(array,low,mid);
-            //右边小数组
-            mergeInternal(array,mid+1,high);
-            //将array[p...mid]与array[mid+1...r]合并为array[p...r]
-            //优化：当左边数组最大元素都小于右边数组最小元素，说明整个数组有序，直接结束排序
-            if (array[mid] >= array[mid+1]) {
-                merge(array,low,mid,high);
+        private static void mergeSortInternal(int[] target,int low,int high){
+            if(low >= high){
+                return;
             }
+
+            int mid = (low + high)/2;
+            //左边小数组
+            mergeSortInternal(target,low,mid);
+            //右边小数组
+            mergeSortInternal(target,mid+1,high);
+            //将array[p...mid]与array[mid+1...r]合并为array[p...r]
+            merge(target,low,mid,high);
         }
 
         /***
          * 合并函数
-         * @param array
-         * @param p 开始位置
+         * @param target
+         * @param low 开始位置
          * @param mid 中间位置
-         * @param r 结束位置
+         * @param high 结束位置
          */
-        private static void merge(int[] array,int p,int mid,int r){
-            int i = p;
+        private static void merge(int[] target,int low,int mid,int high){
+            int i = low;
             int j = mid+1;
             int k = 0;
-            int[] temp = new int[r-p+1];
+            int[] temp = new int[high - low + 1];
             //两部分数组都还有数据
-            while (i <= mid && j <= r){
+            while (i <= mid && j <= high){
                 //小于等于保证了有序性
-                if (array[i] <= array[j]){
-                    temp[k++] = array[i++];
+                if (target[i] <= target[j]){
+                    temp[k++] = target[i++];
                 }else {
-                    temp[k++] = array[j++];
+                    temp[k++] = target[j++];
                 }
             }
             //判断两个数组中哪个还有元素
             int start = i;
             int end = mid;
             //如果剩下第二个数组
-            if(j <= r){
+            if(j <= high){
                 start = j;
-                end = r;
+                end = high;
             }
             //将剩余数据拷贝回temp数组
             while (start <= end){
-                temp[k++] = array[start++];
+                temp[k++] = target[start++];
             }
             //将temp中的数组拷贝回原数组a[p...r]
-            for(i = 0;i <= r-p;i++){
-                array[p+i] = temp[i];
+            for(i = 0;i <= high-low;i++){
+                target[low +i] = temp[i];
             }
         }
-    }
+
+
+        @Benchmark
+        public void testQuickSort(){
+            int[] a = new int[10000];
+            Random random = new Random(2013466);
+            for(int i = 0;i < a.length;i++){
+                a[i] = random.nextInt(10000);
+            }
+
+            mergeSort(a);
+        }
 
     @Benchmark
-    public void testQuickSort(){
-//        int[] a = new int[100000];
-//        Random random = new Random(20190713);
-//        for()
+    public void testArraysSort(){
+        int[] a = new int[10000];
+        Random random = new Random(2013466);
+        for(int i = 0;i < a.length;i++){
+            a[i] = random.nextInt(10000);
+        }
+
+        Arrays.sort(a);
     }
 
 }
